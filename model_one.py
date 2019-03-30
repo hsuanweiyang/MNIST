@@ -16,6 +16,6 @@ def train_valid_test(input_data, train_portion=0.95):
     valid_num = int((num_sample - train_num)/2)
     return input_data[:train_num], input_data[train_num:valid_num], input_data[valid_num:]
 
-
+test = 0
 (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = generate_dataset('train.csv')
 
