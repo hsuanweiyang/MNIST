@@ -145,4 +145,4 @@ train_X = train_X/255
 valid_X = valid_X/255
 test_X = test_X/255
 
-model(train_X, train_Y, valid_X, valid_Y)
+model(train_X, train_Y, valid_X, valid_Y, num_epoch=1000)
