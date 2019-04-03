@@ -116,24 +116,27 @@ def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=15
         sess.run(init)
 
         for epoch in range(num_epoch):
-            #'''
             epoch_cost = 0.
             minibatches = random_mini_batches(train_X, train_Y, minibatch_size)
             num_minibatches = len(minibatches)
             
             for minibatch in minibatches:
                 (mini_x, mini_y) = minibatch
-                _, mini_cost = sess.run([optimizer, cost], feed_dict={X:mini_x, Y:mini_y})
+                _, mini_cost = sess.run([optimizer, cost], {X: mini_x, Y: mini_y})
 
                 epoch_cost += mini_cost/num_minibatches
-            #'''
-            #_, epoch_cost = sess.run([optimizer, cost], feed_dict={X:train_X, Y:train_Y})
 
             if epoch % 100 == 0 and print_cost is True:
                 print('epoch_', epoch+1, ': ', epoch_cost)
             if epoch % 5 == 0 and print_cost is True:
                 costs.append(epoch_cost)
+    parameters = sess.run(parameters)
+    correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    print('Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
+    print('Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
 
+    return parameters
 
 test = 0
 (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data('train.csv')
