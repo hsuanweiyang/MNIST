@@ -130,7 +130,7 @@ def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=15
                 print('epoch_', epoch+1, ': ', epoch_cost)
             if epoch % 5 == 0 and print_cost is True:
                 costs.append(epoch_cost)
-    parameters = sess.run(parameters)
+        parameters = sess.run(parameters)
     correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     print('Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
