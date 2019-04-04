@@ -110,6 +110,10 @@ def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=15
     cost = compute_cost(Y, Z3)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
+    # eval
+    correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
     init = tf.global_variables_initializer()
 
     with tf.Session() as sess:
@@ -127,18 +131,18 @@ def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=15
                 epoch_cost += mini_cost/num_minibatches
 
             if epoch % 100 == 0 and print_cost is True:
-                print('epoch_', epoch+1, ': ', epoch_cost)
+                print('epoch_', epoch, ': ', epoch_cost)
+                print('Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
+                print('Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
             if epoch % 5 == 0 and print_cost is True:
                 costs.append(epoch_cost)
+        print('Final Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
+        print('Final Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
         parameters = sess.run(parameters)
-    correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    print('Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
-    print('Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
 
     return parameters
 
-test = 0
+
 (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data('train.csv')
 
 train_X = train_X/255
