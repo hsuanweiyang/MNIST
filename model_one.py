@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # modified Data
 
@@ -50,14 +51,21 @@ def add_layer(W, X, b, act_fun=tf.nn.relu):
     return A
 
 
-def forward_propagation(X, parameters):
+def forward_propagation(X, parameters, train=True):
 
     W1, b1 = parameters['W1'], parameters['b1']
     W2, b2 = parameters['W2'], parameters['b2']
     W3, b3 = parameters['W3'], parameters['b3']
 
-    A1 = add_layer(W1, X, b1)
-    A2 = add_layer(W2, A1, b2)
+    if train:
+        A1 = add_layer(W1, X, b1)
+        A1 = tf.nn.dropout(A1, rate=0.2)
+        A2 = add_layer(W2, A1, b2)
+        A2 = tf.nn.dropout(A2, rate=0.2)
+    else:
+        A1 = add_layer(W1, X, b1)
+        A2 = add_layer(W2, A1, b2)
+
     Z3 = tf.matmul(W3, A2)
     return Z3
 
@@ -95,29 +103,45 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
     return mini_batches
 
 
-def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=1500,
-          minibatch_size=64, print_cost=True):
+def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=1500,
+             minibatch_size=64, print_cost=True, draw=False):
 
     (n_features, m) = train_X.shape
     n_y = train_Y.shape[0]
     costs = []
+    valid_costs = []
 
     X, Y = create_placeholder(n_features, n_y)
     parameters = initialize_parameters(n_features)
 
     Z3 = forward_propagation(X, parameters)
+    Z3_test = forward_propagation(X, parameters, train=False)
 
     cost = compute_cost(Y, Z3)
+    cost_test = compute_cost(Y, Z3_test)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-    # eval
+    # eval_train
     correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    # eval_test
+    correct_prediction_test = tf.equal(tf.argmax(Z3_test), tf.argmax(Y))
+    accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
 
     init = tf.global_variables_initializer()
 
     with tf.Session() as sess:
         sess.run(init)
+
+        if draw is True:
+            plt.title('Loss')
+            plt.ylabel('loss')
+            plt.xlabel('#epoch/5')
+            plt.plot(costs, '-rx', label='Train')
+            plt.plot(valid_costs, '-bo', label='Test')
+            plt.legend(loc=1)
+            plt.ion()
+            plt.show()
 
         for epoch in range(num_epoch):
             epoch_cost = 0.
@@ -132,12 +156,16 @@ def model(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=15
 
             if epoch % 100 == 0 and print_cost is True:
                 print('epoch_', epoch, ': ', epoch_cost)
-                print('Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
-                print('Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
-            if epoch % 5 == 0 and print_cost is True:
+            if epoch % 5 == 0:
                 costs.append(epoch_cost)
+                valid_costs.append(cost_test.eval({X: valid_X, Y: valid_Y}))
+            if draw is True and epoch % 5 == 0:
+                plt.plot(costs, '-rx', label='Train')
+                plt.plot(valid_costs, '-bo', label='Test')
+                plt.pause(0.1)
+        plt.savefig('fig1')
         print('Final Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
-        print('Final Validation Acc:', accuracy.eval({X: valid_X, Y: valid_Y}))
+        print('Final Validation Acc:', accuracy_test.eval({X: valid_X, Y: valid_Y}))
         parameters = sess.run(parameters)
 
     return parameters
@@ -149,4 +177,5 @@ train_X = train_X/255
 valid_X = valid_X/255
 test_X = test_X/255
 
-model(train_X, train_Y, valid_X, valid_Y, num_epoch=1000)
+
+model_fc(train_X, train_Y, valid_X, valid_Y, draw=True)
