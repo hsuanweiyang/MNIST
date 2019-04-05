@@ -104,7 +104,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
 
 
 def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=1500,
-             minibatch_size=64, print_cost=True, draw=False):
+             minibatch_size=64, regularize=False, print_cost=True, draw=False):
 
     (n_features, m) = train_X.shape
     n_y = train_Y.shape[0]
@@ -118,6 +118,12 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
     Z3_test = forward_propagation(X, parameters, train=False)
 
     cost = compute_cost(Y, Z3)
+    reg = '0'   # regularization status
+    if regularize:
+        reg = '1'
+        regulizer = tf.nn.l2_loss(parameters)
+        lamda = 0.01
+        cost = tf.reduce_mean(cost + (lamda/2) * regulizer)
     cost_test = compute_cost(Y, Z3_test)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -154,16 +160,21 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
 
                 epoch_cost += mini_cost/num_minibatches
 
-            if epoch % 100 == 0 and print_cost is True:
-                print('epoch_', epoch, ': ', epoch_cost)
-            if epoch % 5 == 0:
+            if (epoch+1) % 100 == 0 and print_cost is True:
+                print('epoch_', epoch+1, ': ', epoch_cost)
+            if (epoch+1) % 5 == 0:
                 costs.append(epoch_cost)
                 valid_costs.append(cost_test.eval({X: valid_X, Y: valid_Y}))
-            if draw is True and epoch % 5 == 0:
+            if draw is True and (epoch+1) % 5 == 0:
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
-        plt.savefig('fig1' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S'))
+        plt.savefig('fig_ep-{0}_bz-{1}_lr-{2}_reg-{3}_{4}'.format(num_epoch,
+                                                                  minibatch_size,
+                                                                  learning_rate, reg,
+                                                                  datetime.datetime.now().strftime('%Y%m%d')
+                                                                  )
+                    )
         print('Final Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
         print('Final Validation Acc:', accuracy_test.eval({X: valid_X, Y: valid_Y}))
         parameters = sess.run(parameters)
@@ -192,6 +203,7 @@ if __name__ == '__main__':
         epoch_num = 1500
         batch_size = 64
         learning_rate = 0.0001
+        regularization = False
         i = 0
         while i < len(train_opt):
             if train_opt[i] == '-e':
@@ -200,6 +212,8 @@ if __name__ == '__main__':
                 batch_size = int(train_opt[i+1])
             elif train_opt == '-lr':
                 learning_rate = float(train_opt[i+1])
+            elif train_opt == '-r':
+                regularization = True
             i += 1
 
         (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data(file_input)
@@ -208,9 +222,11 @@ if __name__ == '__main__':
         test_X = test_X/255
 
         learned_para = model_fc(train_X, train_Y, valid_X, valid_Y, num_epoch=epoch_num,
-                                minibatch_size=batch_size, learning_rate=learning_rate,
-                                draw=True)
-        pickle.dump(learned_para, open('fc_para.pkl', 'wb'))
+                                minibatch_size=batch_size, regularize=regularization,
+                                learning_rate=learning_rate, draw=True)
+        pickle.dump(learned_para, open('fc_para_ep-{0}_bz-{1}_lr-{2}_reg-{3}_{4}.pkl'.
+                                       format(epoch_num, batch_size, learning_rate,
+                                       int(regularization), datetime.datetime.now().strftime('%Y%m%d')), 'wb'))
         predict_result = predict(test_X, learned_para)
 
     elif opt == '-te':
