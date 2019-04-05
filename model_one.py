@@ -163,7 +163,7 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
-        plt.savefig('fig1')
+        plt.savefig('fig1' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S'))
         print('Final Train Acc:', accuracy.eval({X: train_X, Y: train_Y}))
         print('Final Validation Acc:', accuracy_test.eval({X: valid_X, Y: valid_Y}))
         parameters = sess.run(parameters)
