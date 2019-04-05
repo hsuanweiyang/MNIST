@@ -53,14 +53,11 @@ def add_layer(W, X, b, act_fun=tf.nn.relu):
     return A
 
 
-def forward_propagation(X, parameters, train=True):
+def forward_propagation(X, parameters, drop_rate):
 
     W1, b1 = parameters['W1'], parameters['b1']
     W2, b2 = parameters['W2'], parameters['b2']
     W3, b3 = parameters['W3'], parameters['b3']
-    drop_rate = 0
-    if train:
-        drop_rate = 0.1
     A1 = add_layer(W1, X, b1)
     A1 = tf.nn.dropout(A1, rate=drop_rate)
     A2 = add_layer(W2, A1, b2)
@@ -103,7 +100,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
     return mini_batches
 
 
-def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch=1500,
+def model_fc(train_X, train_Y, valid_X, valid_Y, dropout, learning_rate=0.0001, num_epoch=1500,
              minibatch_size=64, regularize=False, print_cost=True, draw=False):
 
     (n_features, m) = train_X.shape
@@ -114,8 +111,8 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
     X, Y = create_placeholder(n_features, n_y)
     parameters = initialize_parameters(n_features)
 
-    Z3 = forward_propagation(X, parameters)
-    Z3_test = forward_propagation(X, parameters, train=False)
+    Z3 = forward_propagation(X, parameters, dropout)
+    Z3_test = forward_propagation(X, parameters, 0)
 
     cost = compute_cost(Y, Z3)
     reg = '0'   # regularization status
@@ -169,9 +166,9 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
-        plt.savefig('fig_ep-{0}_bz-{1}_lr-{2}_reg-{3}_{4}'.format(num_epoch,
+        plt.savefig('fig_ep-{0}_bz-{1}_lr-{2}_reg-{3}_dr-{4}_{5}.png'.format(num_epoch,
                                                                   minibatch_size,
-                                                                  learning_rate, reg,
+                                                                  learning_rate, reg, dropout,
                                                                   datetime.datetime.now().strftime('%Y%m%d')
                                                                   )
                     )
@@ -185,7 +182,7 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
 def predict(X, parameters):
 
     x = tf.placeholder(tf.float32, [X.shape[0], None])
-    Z3 = forward_propagation(x, parameters, train=False)
+    Z3 = forward_propagation(x, parameters, 0)
     prediction = tf.argmax(Z3)
 
     with tf.Session() as sess:
@@ -204,6 +201,7 @@ if __name__ == '__main__':
         batch_size = 64
         learning_rate = 0.0001
         regularization = False
+        dropout_rate = 0.
         i = 0
         while i < len(train_opt):
             if train_opt[i] == '-e':
@@ -214,19 +212,22 @@ if __name__ == '__main__':
                 learning_rate = float(train_opt[i+1])
             elif train_opt == '-r':
                 regularization = True
+            elif train_opt == '-d':
+                dropout_rate = float(train_opt[i+1])
             i += 1
 
         (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data(file_input)
         train_X = train_X/255
         valid_X = valid_X/255
         test_X = test_X/255
-
-        learned_para = model_fc(train_X, train_Y, valid_X, valid_Y, num_epoch=epoch_num,
-                                minibatch_size=batch_size, regularize=regularization,
-                                learning_rate=learning_rate, draw=True)
-        pickle.dump(learned_para, open('fc_para_ep-{0}_bz-{1}_lr-{2}_reg-{3}_{4}.pkl'.
+        learned_para = model_fc(train_X, train_Y, valid_X, valid_Y, dropout_rate,
+                                num_epoch=epoch_num, minibatch_size=batch_size,
+                                regularize=regularization, learning_rate=learning_rate,
+                                draw=True)
+        pickle.dump(learned_para, open('fc_para_ep-{0}_bz-{1}_lr-{2}_reg-{3}_dr-{4}_{5}.pkl'.
                                        format(epoch_num, batch_size, learning_rate,
-                                       int(regularization), datetime.datetime.now().strftime('%Y%m%d')), 'wb'))
+                                       int(regularization), dropout_rate,
+                                        datetime.datetime.now().strftime('%Y%m%d')), 'wb'))
         predict_result = predict(test_X, learned_para)
 
     elif opt == '-te':
