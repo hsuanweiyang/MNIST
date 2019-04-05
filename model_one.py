@@ -206,13 +206,13 @@ if __name__ == '__main__':
         while i < len(train_opt):
             if train_opt[i] == '-e':
                 epoch_num = int(train_opt[i+1])
-            elif train_opt == '-b':
+            elif train_opt[i] == '-b':
                 batch_size = int(train_opt[i+1])
-            elif train_opt == '-lr':
+            elif train_opt[i] == '-lr':
                 learning_rate = float(train_opt[i+1])
-            elif train_opt == '-r':
+            elif train_opt[i] == '-r':
                 regularization = True
-            elif train_opt == '-d':
+            elif train_opt[i] == '-d':
                 dropout_rate = float(train_opt[i+1])
             i += 1
 
