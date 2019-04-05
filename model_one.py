@@ -2,7 +2,9 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import pickle
+from sys import argv
+import datetime
 # modified Data
 
 
@@ -56,15 +58,13 @@ def forward_propagation(X, parameters, train=True):
     W1, b1 = parameters['W1'], parameters['b1']
     W2, b2 = parameters['W2'], parameters['b2']
     W3, b3 = parameters['W3'], parameters['b3']
-
+    drop_rate = 0
     if train:
-        A1 = add_layer(W1, X, b1)
-        A1 = tf.nn.dropout(A1, rate=0.2)
-        A2 = add_layer(W2, A1, b2)
-        A2 = tf.nn.dropout(A2, rate=0.2)
-    else:
-        A1 = add_layer(W1, X, b1)
-        A2 = add_layer(W2, A1, b2)
+        drop_rate = 0.1
+    A1 = add_layer(W1, X, b1)
+    A1 = tf.nn.dropout(A1, rate=drop_rate)
+    A2 = add_layer(W2, A1, b2)
+    A2 = tf.nn.dropout(A2, rate=drop_rate)
 
     Z3 = tf.matmul(W3, A2)
     return Z3
@@ -171,11 +171,57 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, learning_rate=0.0001, num_epoch
     return parameters
 
 
-(train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data('train.csv')
+def predict(X, parameters):
 
-train_X = train_X/255
-valid_X = valid_X/255
-test_X = test_X/255
+    x = tf.placeholder(tf.float32, [X.shape[0], None])
+    Z3 = forward_propagation(x, parameters, train=False)
+    prediction = tf.argmax(Z3)
+
+    with tf.Session() as sess:
+        result = sess.run(prediction, {x:X})
+
+    return result
 
 
-model_fc(train_X, train_Y, valid_X, valid_Y, draw=True)
+if __name__ == '__main__':
+    file_input = argv[1]
+    opt = argv[2]
+
+    if opt == '-tr':
+        train_opt = argv[3:]
+        epoch_num = 1500
+        batch_size = 64
+        learning_rate = 0.0001
+        i = 0
+        while i < len(train_opt):
+            if train_opt[i] == '-e':
+                epoch_num = int(train_opt[i+1])
+            elif train_opt == '-b':
+                batch_size = int(train_opt[i+1])
+            elif train_opt == '-lr':
+                learning_rate = float(train_opt[i+1])
+            i += 1
+
+        (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data(file_input)
+        train_X = train_X/255
+        valid_X = valid_X/255
+        test_X = test_X/255
+
+        learned_para = model_fc(train_X, train_Y, valid_X, valid_Y, num_epoch=epoch_num,
+                                minibatch_size=batch_size, learning_rate=learning_rate,
+                                draw=True)
+        pickle.dump(learned_para, open('fc_para.pkl', 'wb'))
+        predict_result = predict(test_X, learned_para)
+
+    elif opt == '-te':
+        raw_data = pd.read_csv(file_input)
+        X = pd.DataFrame.transpose(raw_data)
+        parameter_file = argv[3]
+        with open(parameter_file, 'rb') as file:
+            loaded_parameter = pickle.load(file)
+        predict_result = predict(X, loaded_parameter)
+        outfile_name = 'submit_' + datetime.datetime.now().strftime('%Y%m$d_%H-%M-%S')
+        with open(outfile_name, 'w') as outfile:
+            for n in range(len(predict_result)):
+                outfile.write('{0},{1}\n'.format(n+1, predict_result[n]))
+
