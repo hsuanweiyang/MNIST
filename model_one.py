@@ -118,9 +118,12 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, dropout, learning_rate=0.0001, 
     reg = '0'   # regularization status
     if regularize:
         reg = '1'
-        regulizer = tf.nn.l2_loss(parameters)
-        lamda = 0.01
-        cost = tf.reduce_mean(cost + (lamda/2) * regulizer)
+        regularizer = 0
+        for key in parameters.keys():
+            regularizer += tf.nn.l2_loss(parameters[key])
+        lamda = 0.02
+        cost = tf.reduce_mean(cost + (lamda/2) * regularizer)
+
     cost_test = compute_cost(Y, Z3_test)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -237,8 +240,9 @@ if __name__ == '__main__':
         with open(parameter_file, 'rb') as file:
             loaded_parameter = pickle.load(file)
         predict_result = predict(X, loaded_parameter)
-        outfile_name = 'submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S')
+        outfile_name = 'submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S') + '.csv'
         with open(outfile_name, 'w') as outfile:
+            outfile.write('ImageId,Label\n')
             for n in range(len(predict_result)):
                 outfile.write('{0},{1}\n'.format(n+1, predict_result[n]))
 
