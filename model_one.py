@@ -63,7 +63,7 @@ def forward_propagation(X, parameters, drop_rate):
     A2 = add_layer(W2, A1, b2)
     A2 = tf.nn.dropout(A2, rate=drop_rate)
 
-    Z3 = tf.matmul(W3, A2)
+    Z3 = tf.matmul(W3, A2) + b3
     return Z3
 
 
@@ -108,12 +108,10 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, dropout, learning_rate=0.0001, 
     costs = []
     valid_costs = []
 
+# train
     X, Y = create_placeholder(n_features, n_y)
     parameters = initialize_parameters(n_features)
-
     Z3 = forward_propagation(X, parameters, dropout)
-    Z3_test = forward_propagation(X, parameters, 0)
-
     cost = compute_cost(Y, Z3)
     reg = '0'   # regularization status
     if regularize:
@@ -122,15 +120,16 @@ def model_fc(train_X, train_Y, valid_X, valid_Y, dropout, learning_rate=0.0001, 
         for key in parameters.keys():
             regularizer += tf.nn.l2_loss(parameters[key])
         lamda = 0.02
-        cost = tf.reduce_mean(cost + (lamda/2) * regularizer)
-
-    cost_test = compute_cost(Y, Z3_test)
+        cost = tf.reduce_mean(cost + lamda * regularizer)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-    # eval_train
+    # eval
     correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    # eval_test
+
+# valid
+    Z3_test = forward_propagation(X, parameters, 0)
+    cost_test = compute_cost(Y, Z3_test)
+    # eval
     correct_prediction_test = tf.equal(tf.argmax(Z3_test), tf.argmax(Y))
     accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
 
