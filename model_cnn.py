@@ -95,7 +95,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
 
 
 def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoch=100,
-              minibatch_size=64, print_cost=True, draw=False):
+              minibatch_size=64, regularization=0, print_cost=True, draw=False):
 
     (num_sample, n_h, n_w, n_c) = train_x.shape
     n_y = train_y.shape[1]
@@ -106,6 +106,11 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
     parameters = initialize_parameters()
     Z3 = forward_propagation(X, parameters)
     cost = compute_cost(Z3, Y)
+    if regularization > 0.:
+        regularize = 0
+        for key in parameters.keys():
+            regularize += tf.nn.l2_loss(parameters[key])
+        cost = tf.reduce_mean(cost + regularization * regularize)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
     correct_prediction = tf.equal(tf.argmax(Z3, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -118,7 +123,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
         if draw is True:
             plt.title('Loss')
             plt.ylabel('loss')
-            plt.xlabel('#epoch/5')
+            plt.xlabel('#epoch/2')
             plt.plot(costs, '-rx', label='Train')
             plt.plot(valid_costs, '-bo', label='Test')
             plt.legend(loc=1)
@@ -145,7 +150,15 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
-        print('Final Train Acc:', accuracy.eval({X: train_x, Y: train_y}))
+
+        # evaluation
+        train_batches_eval = random_mini_batches(train_x, train_y)
+        num_train_batch_eval = len(train_batches_eval)
+        accuracy_train = 0
+        for train_batch in range(num_train_batch_eval):
+            (mini_train_x, mini_train_y) = train_batches_eval[train_batch]
+            accuracy_train += accuracy.eval({X:mini_train_x, Y:mini_train_y})/num_train_batch_eval
+        print('Final Train Acc: ', accuracy_train)
         print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
         parameters = sess.run(parameters)
     return parameters
@@ -159,6 +172,7 @@ if __name__ == '__main__':
         epoch_num = 100
         batch_size = 64
         learning_rate = 0.0009
+        regularizer = 0
         i = 0
         while i < len(train_opt):
             if train_opt[i] == '-e':
@@ -167,6 +181,8 @@ if __name__ == '__main__':
                 batch_size = int(train_opt[i+1])
             elif train_opt[i] == '-lr':
                 learning_rate = float(train_opt[i+1])
+            elif train_opt[i] == '-r':
+                regularizer = float(train_opt[i+1])
             i += 1
 
         (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data(file_input)
@@ -175,9 +191,16 @@ if __name__ == '__main__':
         test_X = test_X/255
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, learning_rate=learning_rate,
-                                       num_epoch=epoch_num, minibatch_size=batch_size, print_cost=True, draw=True)
-        pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_{3}'.format(epoch_num, batch_size,
-                                                                                        learning_rate,
+                                       num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
+                                       print_cost=True, draw=True)
+        pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_r-{3}_{4}'.format(epoch_num, batch_size,
+                                                                                        learning_rate, regularizer,
                                                                                         datetime.datetime.now().
                                                                                         strftime('%Y%m%d')), 'wb')
                     )
+    elif opt == '-te':
+        raw_input = pd.read_csv(file_input)
+        num_sample = raw_input.shape[0]
+        X = raw_input.values.reshape(num_sample, 28, 28, 1)
+        X /= 255
+        parameter_file = argv[3]
