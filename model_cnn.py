@@ -135,21 +135,31 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
             minibatches = random_mini_batches(train_x, train_y, minibatch_size)
             num_minibatch = len(minibatches)
             epoch_cost = 0
+            accuracy_train = 0
 
             for batch in range(num_minibatch):
                 (mini_x, mini_y) = minibatches[batch]
                 _, mini_cost = sess.run([optimizer, cost], {X:mini_x, Y:mini_y})
                 epoch_cost += mini_cost/num_minibatch
+                accuracy_train += accuracy.eval({X: mini_x, Y: mini_y}) / num_minibatch
 
-            if (epoch+1) % 5 == 0 and print_cost is True:
+            if (epoch+1) % 10 == 0 and print_cost is True:
                 print('epoch_', epoch+1, ': ', epoch_cost)
-            if (epoch+1) % 2 == 0:
+            if (epoch+1) % 100 == 0:
+                print('[epoch-{0}]\n\tTrain Acc = {1}\tValid Acc = {2}'.format(epoch+1, accuracy_train,
+                                                                               accuracy.eval({X: valid_x, Y: valid_y})))
+            if (epoch+1) % 5 == 0:
                 costs.append(epoch_cost)
                 valid_costs.append(cost.eval({X:valid_x, Y: valid_y}))
-            if draw is True and (epoch+1) % 2 == 0:
+            if draw is True and (epoch+1) % 5 == 0:
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
+
+
+
+            print('Final Train Acc: ', accuracy_train)
+            print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
 
         # evaluation
         train_batches_eval = random_mini_batches(train_x, train_y)
@@ -215,6 +225,8 @@ if __name__ == '__main__':
         parameter_file = argv[3]
         with open(parameter_file, 'rb') as parafile:
             loaded_parameters = pickle.load(parafile)
+        print(type(loaded_parameters['W1']))
+        exit()
         predict_result = predict(X, loaded_parameters)
         outfile_name = 'cnn_submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S') + '.csv'
         with open(outfile_name, 'w') as out_file:
