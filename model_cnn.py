@@ -156,11 +156,6 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
 
-
-
-            print('Final Train Acc: ', accuracy_train)
-            print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
-
         # evaluation
         train_batches_eval = random_mini_batches(train_x, train_y)
         num_train_batch_eval = len(train_batches_eval)
