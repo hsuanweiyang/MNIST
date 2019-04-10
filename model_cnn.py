@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pickle
 from sys import argv
 import datetime
+from tensorflow.contrib.layers import fully_connected
 
 
 # modified Data
@@ -58,7 +59,8 @@ def forward_propagation(X, parameters):
     A2 = tf.nn.relu(Z2)
     P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
-    fc_layer = tf.keras.layers.Dense(10, activation=None, use_bias=True)
+    #Z3 = fully_connected(P2, 10, activation_fn=None)
+    fc_layer = tf.keras.layers.Dense(10, activation=None, use_bias=False)
     Z3 = fc_layer(P2)
     return Z3
 
@@ -94,7 +96,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
     return mini_batches
 
 
-def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoch=100,
+def model_cnn(train_x, train_y, valid_x, valid_y, out_test, learning_rate=0.0009, num_epoch=100,
               minibatch_size=64, regularization=0, print_cost=True, draw=False):
 
     (num_sample, n_h, n_w, n_c) = train_x.shape
@@ -102,7 +104,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
     costs = []
     valid_costs = []
 
-    X, Y= create_placeholders(n_h, n_w, n_c, n_y)
+    X, Y = create_placeholders(n_h, n_w, n_c, n_y)
     parameters = initialize_parameters()
     Z3 = forward_propagation(X, parameters)
     cost = compute_cost(Z3, Y)
@@ -112,8 +114,11 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
             regularize += tf.nn.l2_loss(parameters[key])
         cost = tf.reduce_mean(cost + regularization * regularize)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
     correct_prediction = tf.equal(tf.argmax(Z3, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    predict_result = tf.argmax(Z3, 1)
 
     init = tf.global_variables_initializer()
 
@@ -165,15 +170,28 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
             accuracy_train += accuracy.eval({X:mini_train_x, Y:mini_train_y})/num_train_batch_eval
         print('Final Train Acc: ', accuracy_train)
         print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
+
+        #output test
+        out_result = predict_result.eval({X: out_test})
+        with open('out_test.csv', 'w') as test_out:
+            test_out.write('ImageId,Label\n')
+            for i in range(len(out_result)):
+                test_out.write('{0},{1}\n'.format(i+1, out_result[i]))
+
         parameters = sess.run(parameters)
     return parameters
 
 
 def predict(X, parameters):
+    #W1 = tf.convert_to_tensor(parameters['W1'])
+    #W2 = tf.convert_to_tensor(parameters['W2'])
+    #param = {'W1': W1, 'W2': W2}
     x = tf.placeholder(tf.float32, [None, 28, 28, 1])
     Z3 = forward_propagation(x, parameters)
     prediction = tf.argmax(Z3, 1)
+    init = tf.global_variables_initializer()
     with tf.Session() as sess:
+        sess.run(init)
         result = sess.run(prediction, {x: X})
     return result
 
@@ -197,6 +215,8 @@ if __name__ == '__main__':
                 learning_rate = float(train_opt[i+1])
             elif train_opt[i] == '-r':
                 regularizer = float(train_opt[i+1])
+            elif train_opt[i] == '-te':
+                test_file = train_opt[i+1]
             i += 1
 
         (train_X, valid_X, test_X), (train_Y, valid_Y, test_Y) = modified_data(file_input)
@@ -204,7 +224,12 @@ if __name__ == '__main__':
         valid_X = valid_X/255
         test_X = test_X/255
 
-        learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, learning_rate=learning_rate,
+        real_test_raw = pd.read_csv(test_file)
+        num_sample = real_test_raw.shape[0]
+        real_test = real_test_raw.values.reshape([num_sample, 28, 28, 1])
+        real_test = real_test/255
+
+        learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, real_test, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
                                        print_cost=True, draw=True)
         pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_r-{3}_{4}'.format(epoch_num, batch_size,
@@ -212,6 +237,7 @@ if __name__ == '__main__':
                                                                                         datetime.datetime.now().
                                                                                         strftime('%Y%m%d')), 'wb')
                     )
+    '''
     elif opt == '-te':
         raw_input = pd.read_csv(file_input)
         num_sample = raw_input.shape[0]
@@ -220,11 +246,10 @@ if __name__ == '__main__':
         parameter_file = argv[3]
         with open(parameter_file, 'rb') as parafile:
             loaded_parameters = pickle.load(parafile)
-        print(type(loaded_parameters['W1']))
-        exit()
         predict_result = predict(X, loaded_parameters)
         outfile_name = 'cnn_submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S') + '.csv'
         with open(outfile_name, 'w') as out_file:
             out_file.write('ImageId,Label\n')
             for n in range(len(predict_result)):
-                out_file.write('{0},{1}'.format(n+1, predict_result[n]))
+                out_file.write('{0},{1}\n'.format(n+1, predict_result[n]))
+    '''
