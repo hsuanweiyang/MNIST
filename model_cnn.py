@@ -172,12 +172,17 @@ def model_cnn(train_x, train_y, valid_x, valid_y, out_test, learning_rate=0.0009
         print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
 
         #output test
-        out_result = predict_result.eval({X: out_test})
+        out_result = []
+        num_out_test = out_test.shape[0]
+        batch_out_test = int(num_out_test/10)
+        for i in range(9):
+            out_result.extend(predict_result.eval({X: out_test[i * batch_out_test : (i+1) * batch_out_test]}))
+        out_result.extend(predict_result.eval({X: out_test[9 * batch_out_test:]}))
+
         with open('out_test.csv', 'w') as test_out:
             test_out.write('ImageId,Label\n')
             for i in range(len(out_result)):
                 test_out.write('{0},{1}\n'.format(i+1, out_result[i]))
-
         parameters = sess.run(parameters)
     return parameters
 
@@ -228,6 +233,7 @@ if __name__ == '__main__':
         num_sample = real_test_raw.shape[0]
         real_test = real_test_raw.values.reshape([num_sample, 28, 28, 1])
         real_test = real_test/255
+
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, real_test, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
