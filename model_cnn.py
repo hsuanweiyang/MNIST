@@ -164,6 +164,15 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
     return parameters
 
 
+def predict(X, parameters):
+    x = tf.placeholder(tf.float32, [None, 28, 28, 1])
+    Z3 = forward_propagation(x, parameters)
+    prediction = tf.argmax(Z3, 1)
+    with tf.Session() as sess:
+        result = sess.run(prediction, {x: X})
+    return result
+
+
 if __name__ == '__main__':
     opt = argv[1]
     file_input = argv[2]
@@ -202,5 +211,13 @@ if __name__ == '__main__':
         raw_input = pd.read_csv(file_input)
         num_sample = raw_input.shape[0]
         X = raw_input.values.reshape(num_sample, 28, 28, 1)
-        X /= 255
+        X = X/255
         parameter_file = argv[3]
+        with open(parameter_file, 'rb') as parafile:
+            loaded_parameters = pickle.load(parafile)
+        predict_result = predict(X, loaded_parameters)
+        outfile_name = 'cnn_submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S') + '.csv'
+        with open(outfile_name, 'w') as out_file:
+            out_file.write('ImageId,Label\n')
+            for n in range(len(predict_result)):
+                out_file.write('{0},{1}'.format(n+1, predict_result[n]))
