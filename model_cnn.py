@@ -67,11 +67,12 @@ def forward_propagation(X, parameters, is_training):
     P2 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
     P2 = tf.layers.flatten(P2)
-    fc_layer_one = tf.keras.layers.Dense(30, activation=tf.nn.relu, use_bias=True)
-    Z3 = fc_layer_one(P2)
+    fc_layer_one = tf.keras.layers.Dense(30, activation=None)
+    Z4 = tf.layers.batch_normalization(fc_layer_one(P2), training=is_training)
+    Z4 = tf.nn.relu(Z4)
     fc_layer_two = tf.keras.layers.Dense(10, activation=None, use_bias=False)
-    Z4 = fc_layer_two(Z3)
-    return Z4
+    Z5 = fc_layer_two(Z4)
+    return Z5
 
 
 def compute_cost(Z3, Y):
