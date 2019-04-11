@@ -58,9 +58,9 @@ def forward_propagation(X, parameters, drop_rate=0.):
     P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
     fc_layer_one = tf.keras.layers.Dense(30, activation=tf.nn.relu, use_bias=True)
-    Z3 = tf.nn.dropout(fc_layer_one(P2), rate=drop_rate)
+    Z3 = fc_layer_one(P2)
     fc_layer_two = tf.keras.layers.Dense(10, activation=None, use_bias=False)
-    Z4 = tf.nn.dropout(fc_layer_two(Z3), rate=drop_rate)
+    Z4 = fc_layer_two(Z3)
     return Z4
 
 
@@ -96,7 +96,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
 
 
 def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, num_epoch=100,
-              minibatch_size=64, regularization=0, drop_rate=0, print_cost=True, draw=False):
+              minibatch_size=64, regularization=0, print_cost=True, draw=False):
 
     (num_sample, n_h, n_w, n_c) = train_x.shape
     n_y = train_y.shape[1]
@@ -107,7 +107,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
     parameters = initialize_parameters()
 
 # train
-    Z3 = forward_propagation(X, parameters, drop_rate)
+    Z3 = forward_propagation(X, parameters)
     # compute cost
     cost = compute_cost(Z3, Y)
     if regularization > 0.:
@@ -120,13 +120,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
     correct_prediction = tf.equal(tf.argmax(Z3, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# valid & test
-    Z3_test = forward_propagation(X, parameters)
-    cost_test = compute_cost(Z3_test, Y)
-    correct_prediction_test = tf.equal(tf.argmax(Z3, 1), tf.argmax(Y, 1))
-    accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
-
-    predict_result = tf.argmax(Z3_test, 1)
+    predict_result = tf.argmax(Z3, 1)
 
     init = tf.global_variables_initializer()
 
@@ -160,10 +154,10 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
                 print('epoch_', epoch+1, ': ', epoch_cost)
             if (epoch+1) % 100 == 0:
                 print('[epoch-{0}]\n\tTrain Acc = {1}\tValid Acc = {2}'.format(epoch+1, accuracy_train,
-                                                                               accuracy_test.eval({X: valid_x, Y: valid_y})))
+                                                                               accuracy.eval({X: valid_x, Y: valid_y})))
             if (epoch+1) % 5 == 0:
                 costs.append(epoch_cost)
-                valid_costs.append(cost_test.eval({X:valid_x, Y: valid_y}))
+                valid_costs.append(cost.eval({X:valid_x, Y: valid_y}))
             if draw is True and (epoch+1) % 5 == 0:
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
@@ -177,7 +171,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
             (mini_train_x, mini_train_y) = train_batches_eval[train_batch]
             accuracy_train += accuracy.eval({X:mini_train_x, Y:mini_train_y})/num_train_batch_eval
         print('Final Train Acc: ', accuracy_train)
-        print('Final Validation Acc:', accuracy_test.eval({X: valid_x, Y: valid_y}))
+        print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y}))
 
         #output test
         out_result = []
@@ -215,7 +209,6 @@ if __name__ == '__main__':
         batch_size = 64
         learning_rate = 0.0009
         regularizer = 0
-        dropout = 0.
         i = 0
         while i < len(train_opt):
             if train_opt[i] == '-e':
@@ -226,8 +219,6 @@ if __name__ == '__main__':
                 learning_rate = float(train_opt[i+1])
             elif train_opt[i] == '-r':
                 regularizer = float(train_opt[i+1])
-            elif train_opt[i] == '-d':
-                dropout = float(train_opt[i+1])
             elif train_opt[i] == '-te':
                 test_file = train_opt[i+1]
             i += 1
@@ -235,7 +226,6 @@ if __name__ == '__main__':
         (train_X, valid_X), (train_Y, valid_Y) = modified_data(file_input)
         train_X = train_X/255
         valid_X = valid_X/255
-
         real_test_raw = pd.read_csv(test_file)
         num_sample = real_test_raw.shape[0]
         test_X = real_test_raw.values.reshape([num_sample, 28, 28, 1])
@@ -243,7 +233,7 @@ if __name__ == '__main__':
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, test_X, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
-                                       drop_rate=dropout, print_cost=True, draw=True)
+                                       print_cost=True, draw=True)
         pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_r-{3}_{4}'.format(epoch_num, batch_size,
                                                                                         learning_rate, regularizer,
                                                                                         datetime.datetime.now().
