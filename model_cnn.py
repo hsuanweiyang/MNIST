@@ -19,7 +19,7 @@ def modified_data(file_name):
     return train_valid(X), train_valid(Y)
 
 
-def train_valid(input_data, train_portion=0.98):
+def train_valid(input_data, train_portion=0.97):
 
     num_sample = input_data.shape[0]
     train_num = int(num_sample * train_portion)
@@ -40,11 +40,9 @@ def initialize_parameters():
     W1 = tf.get_variable('W1', [8, 8, 1, 8], initializer=tf.keras.initializers.he_normal())
     W2 = tf.get_variable('W2', [4, 4, 8, 16], initializer=tf.keras.initializers.he_normal())
     W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
-    W4 = tf.get_variable('W4', [2, 2, 32, 64], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
                   'W3': W3,
-                  'W4': W4
                   }
     return parameters
 
@@ -54,7 +52,6 @@ def forward_propagation(X, parameters):
     W1 = parameters['W1']
     W2 = parameters['W2']
     W3 = parameters['W3']
-    W4 = parameters['W4']
 
     Z1 = tf.nn.conv2d(X, W1, strides=[1,1,1,1], padding='SAME')
     A1 = tf.nn.relu(Z1)
@@ -63,9 +60,7 @@ def forward_propagation(X, parameters):
     P1 = tf.nn.max_pool(A2, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
     Z3 = tf.nn.conv2d(P1, W3, strides=[1,1,1,1], padding='SAME')
     A3 = tf.nn.relu(Z3)
-    Z4 = tf.nn.conv2d(A3, W4, strides=[1,1,1,1], padding='SAME')
-    A4 = tf.nn.relu(Z4)
-    P2 = tf.nn.max_pool(A4, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+    P2 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
     fc_layer_one = tf.keras.layers.Dense(30, activation=tf.nn.relu, use_bias=True)
     Z3 = fc_layer_one(P2)
