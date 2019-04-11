@@ -59,9 +59,10 @@ def forward_propagation(X, parameters):
     A2 = tf.nn.relu(Z2)
     P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
-    #Z3 = fully_connected(P2, 10, activation_fn=None)
-    fc_layer = tf.keras.layers.Dense(10, activation=None, use_bias=False)
-    Z3 = fc_layer(P2)
+    fc_layer_one = tf.keras.layers.Dense(10, activation=None, use_bias=False)
+    Z3 = fc_layer_one(P2)
+    #fc_layer_two = tf.keras.layers.Dense(10, activation=None, use_bias=True)
+    #Z4 = fc_layer_two(Z3)
     return Z3
 
 
@@ -188,9 +189,6 @@ def model_cnn(train_x, train_y, valid_x, valid_y, out_test, learning_rate=0.0009
 
 
 def predict(X, parameters):
-    #W1 = tf.convert_to_tensor(parameters['W1'])
-    #W2 = tf.convert_to_tensor(parameters['W2'])
-    #param = {'W1': W1, 'W2': W2}
     x = tf.placeholder(tf.float32, [None, 28, 28, 1])
     Z3 = forward_propagation(x, parameters)
     prediction = tf.argmax(Z3, 1)
