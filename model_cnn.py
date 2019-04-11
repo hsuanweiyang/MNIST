@@ -39,37 +39,47 @@ def initialize_parameters():
 
     W1 = tf.get_variable('W1', [8, 8, 1, 8], initializer=tf.keras.initializers.he_normal())
     W2 = tf.get_variable('W2', [4, 4, 8, 16], initializer=tf.keras.initializers.he_normal())
-    W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
+    #W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
-                  'W3': W3,
+    #              'W3': W3,
                   }
     return parameters
 
 
-def forward_propagation(X, parameters, is_training):
+def forward_propagation(X, parameters, is_training, drop_rate):
+
+    if is_training is False:
+        drop_rate = 0.
 
     W1 = parameters['W1']
     W2 = parameters['W2']
-    W3 = parameters['W3']
+    #W3 = parameters['W3']
 
     Z1 = tf.nn.conv2d(X, W1, strides=[1,1,1,1], padding='SAME')
     A1 = tf.layers.batch_normalization(Z1, training=is_training)
     A1 = tf.nn.relu(A1)
-    Z2 = tf.nn.conv2d(A1, W2, strides=[1,1,1,1], padding='SAME')
-    A2 = tf.layers.batch_normalization(Z2, training=is_training)
-    A2 = tf.nn.relu(A2)
-    P1 = tf.nn.max_pool(A2, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 
+    P1 = tf.nn.max_pool(A1, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
+
+    '''
     Z3 = tf.nn.conv2d(P1, W3, strides=[1,1,1,1], padding='SAME')
     A3 = tf.layers.batch_normalization(Z3, training=is_training)
     A3 = tf.nn.relu(A3)
-    P2 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+    '''
 
+    Z2 = tf.nn.conv2d(P1, W2, strides=[1,1,1,1], padding='SAME')
+    A2 = tf.layers.batch_normalization(Z2, training=is_training)
+    A2 = tf.nn.relu(A2)
+
+    P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
+
     fc_layer_one = tf.keras.layers.Dense(30, activation=None)
     Z4 = tf.layers.batch_normalization(fc_layer_one(P2), training=is_training)
     Z4 = tf.nn.relu(Z4)
+    Z4 = tf.nn.dropout(Z4, rate=drop_rate)
+
     fc_layer_two = tf.keras.layers.Dense(10, activation=None, use_bias=False)
     Z5 = fc_layer_two(Z4)
     return Z5
@@ -107,7 +117,7 @@ def random_mini_batches(X, Y, minibatch_size=64, seed=0):
 
 
 def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, num_epoch=100,
-              minibatch_size=64, regularization=0, print_cost=True, draw=False):
+              minibatch_size=64, regularization=0, dropout=0., print_cost=True, draw=False):
 
     (num_sample, n_h, n_w, n_c) = train_x.shape
     n_y = train_y.shape[1]
@@ -119,7 +129,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
     parameters = initialize_parameters()
 
 # train
-    Z_out = forward_propagation(X, parameters, is_training)
+    Z_out = forward_propagation(X, parameters, is_training, dropout)
     # compute cost
     cost = compute_cost(Z_out, Y)
     if regularization > 0.:
@@ -225,6 +235,7 @@ if __name__ == '__main__':
         batch_size = 64
         learning_rate = 0.0009
         regularizer = 0
+        dropout_rate = 0.
         i = 0
         while i < len(train_opt):
             if train_opt[i] == '-e':
@@ -235,6 +246,8 @@ if __name__ == '__main__':
                 learning_rate = float(train_opt[i+1])
             elif train_opt[i] == '-r':
                 regularizer = float(train_opt[i+1])
+            elif train_opt[i] == '-d':
+                dropout_rate = float(train_opt[i+1])
             elif train_opt[i] == '-te':
                 test_file = train_opt[i+1]
             i += 1
@@ -249,7 +262,7 @@ if __name__ == '__main__':
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, test_X, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
-                                       print_cost=True, draw=True)
+                                       dropout=dropout_rate, print_cost=True, draw=True)
         pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_r-{3}_{4}'.format(epoch_num, batch_size,
                                                                                         learning_rate, regularizer,
                                                                                         datetime.datetime.now().
