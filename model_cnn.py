@@ -37,25 +37,35 @@ def create_placeholders(n_h, n_w, n_c, n_y):
 
 def initialize_parameters():
 
-    W1 = tf.get_variable('W1', [4, 4, 1, 8], initializer=tf.keras.initializers.he_normal())
-    W2 = tf.get_variable('W2', [2, 2, 8, 16], initializer=tf.keras.initializers.he_normal())
+    W1 = tf.get_variable('W1', [8, 8, 1, 8], initializer=tf.keras.initializers.he_normal())
+    W2 = tf.get_variable('W2', [4, 4, 8, 16], initializer=tf.keras.initializers.he_normal())
+    W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
+    W4 = tf.get_variable('W4', [2, 2, 32, 64], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
-                  'W2': W2
+                  'W2': W2,
+                  'W3': W3,
+                  'W4': W4
                   }
     return parameters
 
 
-def forward_propagation(X, parameters, drop_rate=0.):
+def forward_propagation(X, parameters):
 
     W1 = parameters['W1']
     W2 = parameters['W2']
+    W3 = parameters['W3']
+    W4 = parameters['W4']
 
     Z1 = tf.nn.conv2d(X, W1, strides=[1,1,1,1], padding='SAME')
     A1 = tf.nn.relu(Z1)
-    P1 = tf.nn.max_pool(A1, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
-    Z2 = tf.nn.conv2d(P1, W2, strides=[1,1,1,1], padding='SAME')
+    Z2 = tf.nn.conv2d(A1, W2, strides=[1,1,1,1], padding='SAME')
     A2 = tf.nn.relu(Z2)
-    P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+    P1 = tf.nn.max_pool(A2, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
+    Z3 = tf.nn.conv2d(P1, W3, strides=[1,1,1,1], padding='SAME')
+    A3 = tf.nn.relu(Z3)
+    Z4 = tf.nn.conv2d(A3, W4, strides=[1,1,1,1], padding='SAME')
+    A4 = tf.nn.relu(Z4)
+    P2 = tf.nn.max_pool(A4, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     P2 = tf.layers.flatten(P2)
     fc_layer_one = tf.keras.layers.Dense(30, activation=tf.nn.relu, use_bias=True)
     Z3 = fc_layer_one(P2)
@@ -130,7 +140,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
         if draw is True:
             plt.title('Loss')
             plt.ylabel('loss')
-            plt.xlabel('#epoch/2')
+            plt.xlabel('#epoch/5')
             plt.plot(costs, '-rx', label='Train')
             plt.plot(valid_costs, '-bo', label='Test')
             plt.legend(loc=1)
