@@ -15,9 +15,9 @@ def modified_data(file_name):
     raw_input = pd.read_csv(file_name)
     X = raw_input[list(raw_input)[1:]]
     X = X.values.reshape(X.shape[0], 28, 28, 1)
-    X = tf.image.adjust_contrast(X, 2.0)
+    contrast_increase = tf.image.adjust_contrast(X, 2.0)
     with tf.Session() as sess:
-        X = sess.run(X)
+        X = sess.run(contrast_increase)
     Y = pd.get_dummies(raw_input['label'])
     return train_valid(X), train_valid(Y)
 
@@ -263,6 +263,9 @@ if __name__ == '__main__':
         real_test_raw = pd.read_csv(test_file)
         num_sample = real_test_raw.shape[0]
         test_X = real_test_raw.values.reshape([num_sample, 28, 28, 1])
+        increase_contrast = tf.image.adjust_contrast(test_X, 2.0)
+        with tf.Session() as sess:
+            test_X = sess.run(increase_contrast)
         test_X = test_X/255
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, test_X, learning_rate=learning_rate,
