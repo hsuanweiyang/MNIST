@@ -37,12 +37,12 @@ def create_placeholders(n_h, n_w, n_c, n_y):
 
 def initialize_parameters():
 
-    W1 = tf.get_variable('W1', [8, 8, 1, 8], initializer=tf.keras.initializers.he_normal())
-    W2 = tf.get_variable('W2', [4, 4, 8, 16], initializer=tf.keras.initializers.he_normal())
-    #W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
+    W1 = tf.get_variable('W1', [8, 8, 1, 32], initializer=tf.keras.initializers.he_normal())
+    W2 = tf.get_variable('W2', [4, 4, 32, 64], initializer=tf.keras.initializers.he_normal())
+    W3 = tf.get_variable('W3', [2, 2, 64, 128], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
-    #              'W3': W3,
+                  'W3': W3,
                   }
     return parameters
 
@@ -54,40 +54,41 @@ def forward_propagation(X, parameters, is_training, drop_rate):
 
     W1 = parameters['W1']
     W2 = parameters['W2']
-    #W3 = parameters['W3']
+    W3 = parameters['W3']
 
     Z1 = tf.nn.conv2d(X, W1, strides=[1,1,1,1], padding='SAME')
     A1 = tf.layers.batch_normalization(Z1, training=is_training)
     A1 = tf.nn.relu(A1)
 
-    P1 = tf.nn.max_pool(A1, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
-
-    '''
-    Z3 = tf.nn.conv2d(P1, W3, strides=[1,1,1,1], padding='SAME')
-    A3 = tf.layers.batch_normalization(Z3, training=is_training)
-    A3 = tf.nn.relu(A3)
-    '''
+    P1 = tf.nn.max_pool(A1, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
     Z2 = tf.nn.conv2d(P1, W2, strides=[1,1,1,1], padding='SAME')
     A2 = tf.layers.batch_normalization(Z2, training=is_training)
     A2 = tf.nn.relu(A2)
 
     P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
-    P2 = tf.layers.flatten(P2)
+    #P2 = tf.layers.flatten(P2)
+
+    Z3 = tf.nn.conv2d(P2, W3, strides=[1,1,1,1], padding='SAME')
+    A3 = tf.layers.batch_normalization(Z3, training=is_training)
+    A3 = tf.nn.relu(A3)
+
+    P3 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+    P3 = tf.layers.flatten(P3)
 
     fc_layer_one = tf.keras.layers.Dense(30, activation=None)
-    Z4 = tf.layers.batch_normalization(fc_layer_one(P2), training=is_training)
+    Z4 = tf.layers.batch_normalization(fc_layer_one(P3), training=is_training)
     Z4 = tf.nn.relu(Z4)
-    Z4 = tf.nn.dropout(Z4, rate=drop_rate)
+    Z4 = tf.nn.dropout(Z4, keep_prob=1-drop_rate)
 
-    fc_layer_two = tf.keras.layers.Dense(10, activation=None, use_bias=False)
-    Z5 = fc_layer_two(Z4)
-    return Z5
+    fc_layer_out = tf.keras.layers.Dense(10, activation=None, use_bias=False)
+    Z_out = fc_layer_out(Z4)
+    return Z_out
 
 
-def compute_cost(Z3, Y):
+def compute_cost(Z_out, Y):
 
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=Z3, labels=Y))
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=Z_out, labels=Y))
     return cost
 
 
@@ -173,16 +174,16 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
                 epoch_cost += mini_cost/num_minibatch
                 accuracy_train += accuracy.eval({X: mini_x, Y: mini_y, is_training: False}) / num_minibatch
 
-            if (epoch+1) % 10 == 0 and print_cost is True:
+            if (epoch+1) % 20 == 0 and print_cost is True:
                 print('epoch_', epoch+1, ': ', epoch_cost)
             if (epoch+1) % 100 == 0:
                 print('[epoch-{0}]\n\tTrain Acc = {1}\tValid Acc = {2}'.format(epoch+1, accuracy_train,
                                                                                accuracy.eval({X: valid_x, Y: valid_y,
                                                                                               is_training: False})))
-            if (epoch+1) % 5 == 0:
+            if (epoch+1) % 10 == 0:
                 costs.append(epoch_cost)
                 valid_costs.append(cost.eval({X: valid_x, Y: valid_y, is_training: False}))
-            if draw is True and (epoch+1) % 5 == 0:
+            if draw is True and (epoch+1) % 10 == 0:
                 plt.plot(costs, '-rx', label='Train')
                 plt.plot(valid_costs, '-bo', label='Test')
                 plt.pause(0.1)
