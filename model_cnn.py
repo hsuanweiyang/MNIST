@@ -15,6 +15,9 @@ def modified_data(file_name):
     raw_input = pd.read_csv(file_name)
     X = raw_input[list(raw_input)[1:]]
     X = X.values.reshape(X.shape[0], 28, 28, 1)
+    X = tf.image.adjust_contrast(X, 2.0)
+    with tf.Session() as sess:
+        X = sess.run(X)
     Y = pd.get_dummies(raw_input['label'])
     return train_valid(X), train_valid(Y)
 
@@ -38,7 +41,7 @@ def create_placeholders(n_h, n_w, n_c, n_y):
 def initialize_parameters():
 
     W1 = tf.get_variable('W1', [8, 8, 1, 8], initializer=tf.keras.initializers.he_normal())
-    W2 = tf.get_variable('W2', [4, 4, 8, 16], initializer=tf.keras.initializers.he_normal())
+    W2 = tf.get_variable('W2', [2, 2, 8, 16], initializer=tf.keras.initializers.he_normal())
     #W3 = tf.get_variable('W3', [2, 2, 16, 32], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
@@ -147,6 +150,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
 
     init = tf.global_variables_initializer()
 
+
     with tf.Session() as sess:
         sess.run(init)
 
@@ -188,7 +192,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, test_x, learning_rate=0.0009, 
                 plt.pause(0.1)
 
         # evaluation (cut train to small pieces preventing resource exhausted)
-        train_batches_eval = random_mini_batches(train_x, train_y)
+        train_batches_eval = random_mini_batches(train_x, train_y, minibatch_size)
         num_train_batch_eval = len(train_batches_eval)
         accuracy_train = 0
         for train_batch in range(num_train_batch_eval):
@@ -263,11 +267,6 @@ if __name__ == '__main__':
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, test_X, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
                                        dropout=dropout_rate, print_cost=True, draw=True)
-        pickle.dump(learned_parameters, open('cnn_para_ep-{0}_bz-{1}_lr-{2}_r-{3}_{4}'.format(epoch_num, batch_size,
-                                                                                        learning_rate, regularizer,
-                                                                                        datetime.datetime.now().
-                                                                                        strftime('%Y%m%d')), 'wb')
-                    )
     '''
     elif opt == '-te':
         raw_input = pd.read_csv(file_input)
