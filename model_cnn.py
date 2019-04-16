@@ -40,12 +40,14 @@ def create_placeholders(n_h, n_w, n_c, n_y):
 
 def initialize_parameters():
 
-    W1 = tf.get_variable('W1', [8, 8, 1, 32], initializer=tf.keras.initializers.he_normal())
-    W2 = tf.get_variable('W2', [4, 4, 32, 64], initializer=tf.keras.initializers.he_normal())
-    W3 = tf.get_variable('W3', [2, 2, 64, 128], initializer=tf.keras.initializers.he_normal())
+    W1 = tf.get_variable('W1', [8, 8, 1, 16], initializer=tf.keras.initializers.he_normal())
+    W2 = tf.get_variable('W2', [6, 6, 16, 32], initializer=tf.keras.initializers.he_normal())
+    W3 = tf.get_variable('W3', [4, 4, 32, 64], initializer=tf.keras.initializers.he_normal())
+    W4 = tf.get_variable('W4', [2, 2, 64, 128], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
                   'W3': W3,
+                  'W4': W4,
                   }
     return parameters
 
@@ -58,6 +60,7 @@ def forward_propagation(X, parameters, is_training, drop_rate):
     W1 = parameters['W1']
     W2 = parameters['W2']
     W3 = parameters['W3']
+    W4 = parameters['W4']
 
     Z1 = tf.nn.conv2d(X, W1, strides=[1,1,1,1], padding='SAME')
     A1 = tf.layers.batch_normalization(Z1, training=is_training)
@@ -70,17 +73,23 @@ def forward_propagation(X, parameters, is_training, drop_rate):
     A2 = tf.nn.relu(A2)
 
     P2 = tf.nn.max_pool(A2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
-    #P2 = tf.layers.flatten(P2)
 
     Z3 = tf.nn.conv2d(P2, W3, strides=[1,1,1,1], padding='SAME')
     A3 = tf.layers.batch_normalization(Z3, training=is_training)
     A3 = tf.nn.relu(A3)
 
-    P3 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
-    P3 = tf.layers.flatten(P3)
+    #P3 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+
+    Z4 = tf.nn.conv2d(A3, W4, strides=[1,1,1,1], padding='SAME')
+    A4 = tf.layers.batch_normalization(Z4, training=is_training)
+    A4 = tf.nn.relu(A4)
+
+    P4 = tf.nn.max_pool(A4, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+
+    P4 = tf.layers.flatten(P4)
 
     fc_layer_one = tf.keras.layers.Dense(30, activation=None)
-    Z4 = tf.layers.batch_normalization(fc_layer_one(P3), training=is_training)
+    Z4 = tf.layers.batch_normalization(fc_layer_one(P4), training=is_training)
     Z4 = tf.nn.relu(Z4)
     Z4 = tf.nn.dropout(Z4, keep_prob=1-drop_rate)
 
