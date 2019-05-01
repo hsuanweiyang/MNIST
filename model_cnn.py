@@ -13,9 +13,11 @@ def modified_data(file_name):
     raw_input = pd.read_csv(file_name)
     X = raw_input[list(raw_input)[1:]]
     X = X.values.reshape(X.shape[0], 28, 28, 1)
+    '''
     contrast_increase = tf.image.adjust_contrast(X, 2.0)
     with tf.Session() as sess:
         X = sess.run(contrast_increase)
+    '''
     Y = pd.get_dummies(raw_input['label'])
     return train_valid(X), train_valid(Y)
 
@@ -50,7 +52,7 @@ def initialize_parameters():
     return parameters
 
 
-def forward_propagation(X, parameters, is_training, drop_rate):
+def forward_propagation(X, parameters, is_training, drop_rate=0.):
 
     if is_training is False:
         drop_rate = 0.
@@ -155,7 +157,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     predict_result = tf.argmax(Z_out, 1, name='output')
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=5)
     init = tf.global_variables_initializer()
 
 
@@ -191,6 +193,9 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
                 print('[epoch-{0}]\n\tTrain Acc = {1}\tValid Acc = {2}'.format(epoch+1, accuracy_train,
                                                                                accuracy.eval({X: valid_x, Y: valid_y,
                                                                                               is_training: False})))
+                saver.save(sess, 'model_cnn_{0}-{1}_r-{2}_d-{3}/model_cnn'.format(learning_rate, num_epoch,
+                                                                                  regularization, dropout_rate),
+                           global_step=epoch+1, write_meta_graph=False)
             if (epoch+1) % 10 == 0:
                 costs.append(epoch_cost)
                 valid_costs.append(cost.eval({X: valid_x, Y: valid_y, is_training: False}))
@@ -208,23 +213,6 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
             accuracy_train += accuracy.eval({X: mini_train_x, Y: mini_train_y, is_training: False})/num_train_batch_eval
         print('Final Train Acc: ', accuracy_train)
         print('Final Validation Acc:', accuracy.eval({X: valid_x, Y: valid_y, is_training: False}))
-
-        saver.save(sess, 'model_file/model.ckpt')
-        '''
-        #output test
-        out_result = []
-        num_out_test = test_x.shape[0]
-        batch_out_test = int(num_out_test/10)
-        for i in range(9):
-            out_result.extend(predict_result.eval({X: test_x[i * batch_out_test: (i+1) * batch_out_test],
-                                                   is_training: False}))
-        out_result.extend(predict_result.eval({X: test_x[9 * batch_out_test:], is_training: False}))
-
-        with open('submit_result.csv', 'w') as test_out:
-            test_out.write('ImageId,Label\n')
-            for i in range(len(out_result)):
-                test_out.write('{0},{1}\n'.format(i+1, out_result[i]))
-        '''
         parameters = sess.run(parameters)
     return parameters
 
@@ -235,14 +223,15 @@ def predict(model_path, test):
     with tf.Session() as sess:
 
         sess.run(init)
-        saver = tf.train.import_meta_graph('model_file/model.ckpt.meta')
-        saver.restore(sess, tf.train.latest_checkpoint('model_file/'))
+        saver = tf.train.import_meta_graph(model_path + '/model_cnn.meta')
+        saver.restore(sess, tf.train.latest_checkpoint(model_path))
         graph = tf.get_default_graph()
         X = graph.get_tensor_by_name('input:0')
         is_training = graph.get_tensor_by_name('training:0')
         predict_result = graph.get_tensor_by_name('output:0')
         result = sess.run(predict_result, {X:test, is_training:False})
-        print(result)
+
+
 
     #return result
 
@@ -285,24 +274,10 @@ if __name__ == '__main__':
         real_test_raw = pd.read_csv(test_file)
         num_sample = real_test_raw.shape[0]
         test_X = real_test_raw.values.reshape([num_sample, 28, 28, 1])
-
+        '''
         increase_contrast = tf.image.adjust_contrast(test_X, 2.0)
         with tf.Session() as sess:
             test_X = sess.run(increase_contrast)
+        '''
         test_X = test_X/255
         predict(model_path, test_X)
-    '''
-        raw_input = pd.read_csv(file_input)
-        num_sample = raw_input.shape[0]
-        X = raw_input.values.reshape(num_sample, 28, 28, 1)
-        X = X/255
-        parameter_file = argv[3]
-        with open(parameter_file, 'rb') as parafile:
-            loaded_parameters = pickle.load(parafile)
-        predict_result = predict(X, loaded_parameters)
-        outfile_name = 'cnn_submit_' + datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S') + '.csv'
-        with open(outfile_name, 'w') as out_file:
-            out_file.write('ImageId,Label\n')
-            for n in range(len(predict_result)):
-                out_file.write('{0},{1}\n'.format(n+1, predict_result[n]))
-    '''
