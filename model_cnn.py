@@ -14,7 +14,7 @@ def modified_data(file_name):
     X = raw_input[list(raw_input)[1:]]
     X = X.values.reshape(X.shape[0], 28, 28, 1)
     '''
-    contrast_increase = tf.image.adjust_contrast(X, 2.0)
+    contrast_increase = tf.image.adjust_contrast(X, 200)
     with tf.Session() as sess:
         X = sess.run(contrast_increase)
     '''
@@ -41,13 +41,13 @@ def create_placeholders(n_h, n_w, n_c, n_y):
 def initialize_parameters():
 
     W1 = tf.get_variable('W1', [8, 8, 1, 16], initializer=tf.keras.initializers.he_normal())
-    W2 = tf.get_variable('W2', [6, 6, 16, 32], initializer=tf.keras.initializers.he_normal())
-    W3 = tf.get_variable('W3', [4, 4, 32, 64], initializer=tf.keras.initializers.he_normal())
+    W2 = tf.get_variable('W2', [4, 4, 16, 32], initializer=tf.keras.initializers.he_normal())
+    W3 = tf.get_variable('W3', [2, 2, 32, 64], initializer=tf.keras.initializers.he_normal())
     #W4 = tf.get_variable('W4', [2, 2, 64, 128], initializer=tf.keras.initializers.he_normal())
     parameters = {'W1': W1,
                   'W2': W2,
                   'W3': W3,
-                  #'W4': W4,
+    #              'W4': W4,
                   }
     return parameters
 
@@ -80,7 +80,7 @@ def forward_propagation(X, parameters, is_training, drop_rate=0.):
 
     P3 = tf.nn.max_pool(A3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
-    #Z4 = tf.nn.conv2d(A3, W4, strides=[1,1,1,1], padding='SAME')
+    #Z4 = tf.nn.conv2d(P3, W4, strides=[1,1,1,1], padding='SAME')
     #A4 = tf.layers.batch_normalization(Z4, training=is_training)
     #A4 = tf.nn.relu(A4)
 
@@ -88,7 +88,7 @@ def forward_propagation(X, parameters, is_training, drop_rate=0.):
 
     P_out = tf.layers.flatten(P3)
 
-    fc_layer_one = tf.keras.layers.Dense(30, activation=None)
+    fc_layer_one = tf.keras.layers.Dense(60, activation=None)
     Z5 = tf.layers.batch_normalization(fc_layer_one(P_out), training=is_training)
     Z5 = tf.nn.relu(Z5)
     Z5 = tf.nn.dropout(Z5, keep_prob=1-drop_rate)
@@ -195,7 +195,7 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
                                                                                               is_training: False})))
                 saver.save(sess, 'model_cnn_{0}-{1}_r-{2}_d-{3}/model_cnn'.format(learning_rate, num_epoch,
                                                                                   regularization, dropout_rate),
-                           global_step=epoch+1, write_meta_graph=False)
+                           global_step=epoch+1)
             if (epoch+1) % 10 == 0:
                 costs.append(epoch_cost)
                 valid_costs.append(cost.eval({X: valid_x, Y: valid_y, is_training: False}))
@@ -217,24 +217,27 @@ def model_cnn(train_x, train_y, valid_x, valid_y, learning_rate=0.0009, num_epoc
     return parameters
 
 
-def predict(model_path, test):
+def predict(model_path, model_selected, test):
 
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
 
         sess.run(init)
-        saver = tf.train.import_meta_graph(model_path + '/model_cnn.meta')
-        saver.restore(sess, tf.train.latest_checkpoint(model_path))
+        saver = tf.train.import_meta_graph('{0}/model_cnn-{1}.meta'.format(model_path, model_selected))
+        saver.restore(sess, '{0}/model_cnn-{1}'.format(model_path, model_selected))
         graph = tf.get_default_graph()
         X = graph.get_tensor_by_name('input:0')
         is_training = graph.get_tensor_by_name('training:0')
         predict_result = graph.get_tensor_by_name('output:0')
-        result = sess.run(predict_result, {X:test, is_training:False})
-
-
-
-    #return result
-
+        result = []
+        part = len(test)//10
+        for a in range(9):
+            result.extend(sess.run(predict_result, {X: test[a*part:(a+1)*part], is_training: False}))
+        result.extend(sess.run(predict_result, {X: test[9*part:], is_training: False}))
+        with open('submit_{0}.csv'.format(datetime.datetime.now().strftime("%Y%m%d_%H-%M-%S")), 'w') as output_file:
+            output_file.write('ImageId,Label\n')
+            for i in range(len(result)):
+                output_file.write('{0},{1}\n'.format(i+1, result[i]))
 
 
 if __name__ == '__main__':
@@ -267,17 +270,18 @@ if __name__ == '__main__':
 
         learned_parameters = model_cnn(train_X, train_Y, valid_X, valid_Y, learning_rate=learning_rate,
                                        num_epoch=epoch_num, minibatch_size=batch_size, regularization=regularizer,
-                                       dropout=dropout_rate, print_cost=True, draw=True)
+                                       dropout=dropout_rate, print_cost=True, draw=False)
     elif opt == '-te':
         model_path = argv[2]
-        test_file = argv[3]
+        model_selected = argv[3]
+        test_file = argv[4]
         real_test_raw = pd.read_csv(test_file)
         num_sample = real_test_raw.shape[0]
         test_X = real_test_raw.values.reshape([num_sample, 28, 28, 1])
         '''
-        increase_contrast = tf.image.adjust_contrast(test_X, 2.0)
+        increase_contrast = tf.image.adjust_contrast(test_X, 200)
         with tf.Session() as sess:
             test_X = sess.run(increase_contrast)
         '''
         test_X = test_X/255
-        predict(model_path, test_X)
+        predict(model_path, model_selected, test_X)
